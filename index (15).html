@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>석정여자고등학교 입시 포털</title>
+    <!-- Google Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Excel 다운로드용 라이브러리 (SheetJS) -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+    <style>
+        :root {
+            --primary: #4F46E5;
+            --primary-dark: #3730A3;
+            --bg: #F8FAFC;
+            --card: #FFFFFF;
+            --border: #E2E8F0;
+            --text: #0F172A;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Noto Sans KR', sans-serif; }
+        body { background-color: var(--bg); color: var(--text); padding-bottom: 60px; }
+
+        /* NAV & HEADER */
+        nav {
+            background: #1E1B4B;
+            color: white;
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        nav .brand { font-weight: 800; font-size: 1.1rem; }
+        nav .admin-btn {
+            background: rgba(255,255,255,0.15);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.3);
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+
+        header {
+            background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+            color: white;
+            padding: 40px 20px;
+            text-align: center;
+        }
+        header h1 { font-size: 2rem; font-weight: 800; margin-bottom: 8px; }
+        header p { opacity: 0.9; font-size: 1rem; }
+
+        .container { max-width: 900px; margin: 20px auto; padding: 0 16px; }
+
+        .card {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid var(--border);
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        }
+        .card-title { font-size: 1.2rem; font-weight: 800; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
+
+        /* FORM STYLES */
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin-bottom: 12px; }
+        label { font-size: 0.8rem; font-weight: 600; display: block; margin-bottom: 4px; }
+        input, select, textarea {
+            width: 100%; padding: 8px 12px; border: 1px solid var(--border);
+            border-radius: 6px; font-size: 0.95rem; background: #FAFAFA;
+        }
+        .btn {
+            background: var(--primary); color: white; border: none; padding: 10px 16px;
+            border-radius: 6px; font-weight: 700; cursor: pointer; width: 100%; margin-top: 10px;
+        }
+        .btn:hover { background: var(--primary-dark); }
+        .btn-green { background: #10B981; }
+        .btn-green:hover { background: #059669; }
+
+        /* SCORE GRID */
+        .score-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; text-align: center; }
+        .score-grid input { text-align: center; }
+
+        /* ADMIN TABLE */
+        .table-wrapper { overflow-x: auto; margin-top: 15px; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; text-align: left; }
+        th, td { padding: 10px; border-bottom: 1px solid var(--border); }
+        th { background: #F1F5F9; font-weight: 700; }
+        
+        .admin-controls { display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+        .admin-controls button { width: auto; font-size: 0.85rem; padding: 6px 12px; }
+
+        .notice-item { background: #F8FAFC; border: 1px solid var(--border); padding: 12px; border-radius: 6px; margin-bottom: 8px; }
+    </style>
+</head>
+<body>
+
+    <nav>
+        <div class="brand"><i class="fa-solid fa-school"></i> 명신여고 입시포털</div>
+        <button class="admin-btn" onclick="loginAdmin()"><i class="fa-solid fa-user-gear"></i> 교사 관리자</button>
+    </nav>
+
+    <header>
+        <h1>석정여고, 끝까지 해보자! 🔥</h1>
+        <p>“조금씩이라도, 매일 앞으로. 너의 꿈을 응원해.”</p>
+    </header>
+
+    <div class="container">
+
+        <!-- 1. 공지사항 -->
+        <div class="card">
+            <div class="card-title"><i class="fa-solid fa-bullhorn" style="color:var(--primary);"></i> 교사 공지사항</div>
+            <div id="noticeContainer"></div>
+            <div id="adminNoticeForm" style="display: none; margin-top: 15px; border-top: 1px dashed var(--border); padding-top: 15px;">
+                <h4>[관리자] 새 공지 등록</h4>
+                <input type="text" id="noticeTitle" placeholder="공지 제목" style="margin: 8px 0;">
+                <textarea id="noticeContent" placeholder="공지 내용" rows="2"></textarea>
+                <button class="btn" onclick="addNotice()">공지 작성하기</button>
+            </div>
+        </div>
+
+        <!-- 2. 희망대학 & 성적 입력 -->
+        <div class="card">
+            <div class="card-title"><i class="fa-solid fa-pen-to-square" style="color:var(--primary);"></i> 희망대학 및 모의고사 성적 입력</div>
+            <form id="studentForm">
+                <div class="form-grid">
+                    <div>
+                        <label>학년</label>
+                        <select id="grade" required>
+                            <option value="3">3학년</option>
+                            <option value="2">2학년</option>
+                            <option value="1">1학년</option>
+                        </select>
+                    </div>
+                    <div><label>반</label><input type="number" id="classNum" placeholder="예: 3" required></div>
+                    <div><label>번호</label><input type="number" id="studentNum" placeholder="예: 12" required></div>
+                    <div><label>이름</label><input type="text" id="studentName" placeholder="김석정" required></div>
+                </div>
+
+                <div class="form-grid">
+                    <div><label>희망 대학교</label><input type="text" id="targetUni" placeholder="서울대" required></div>
+                    <div><label>희망 학과</label><input type="text" id="targetMajor" placeholder="컴퓨터공학과" required></div>
+                    <div>
+                        <label>희망 전형</label>
+                        <select id="applyType" required>
+                            <option value="학생부종합">학생부종합</option>
+                            <option value="학생부교과">학생부교과</option>
+                            <option value="논술">논술</option>
+                            <option value="정시(수능)">정시(수능)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="margin: 15px 0 8px 0;"><label>모의고사 점수 (원점수 또는 표준점수)</label></div>
+                <div class="score-grid">
+                    <div><label>국어</label><input type="number" id="scoreKorean" placeholder="80" required></div>
+                    <div><label>수학</label><input type="number" id="scoreMath" placeholder="80" required></div>
+                    <div><label>영어</label><input type="number" id="scoreEnglish" placeholder="80" required></div>
+                    <div><label>탐구1</label><input type="number" id="scoreTam1" placeholder="40" required></div>
+                    <div><label>탐구2</label><input type="number" id="scoreTam2" placeholder="40" required></div>
+                </div>
+
+                <button type="submit" class="btn"><i class="fa-solid fa-paper-plane"></i> 제출하기</button>
+            </form>
+        </div>
+
+        <!-- 3. 관리자 전용 영역 (비밀번호 인증 필요) -->
+        <div class="card" id="adminPanel" style="display: none; border: 2px solid var(--primary);">
+            <div class="card-title"><i class="fa-solid fa-lock" style="color:var(--primary);"></i> [교사 전용] 학생 제출 데이터 관리</div>
+            
+            <div class="admin-controls">
+                <button class="btn" onclick="renderTable('num')"><i class="fa-solid fa-arrow-down-1-9"></i> 학번순 정렬</button>
+                <button class="btn" onclick="renderTable('score')"><i class="fa-solid fa-arrow-down-9-1"></i> 성적합계순 정렬</button>
+                <button class="btn btn-green" onclick="downloadExcel()"><i class="fa-solid fa-file-excel"></i> 엑셀 다운로드</button>
+            </div>
+
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>학번</th>
+                            <th>이름</th>
+                            <th>희망대학(학과)</th>
+                            <th>전형</th>
+                            <th>국/수/영/탐1/탐2</th>
+                            <th>점수합계</th>
+                        </tr>
+                    </thead>
+                    <tbody id="studentTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        let isAdmin = false;
+
+        // 샘플 초기 공지 데이터
+        const defaultNotices = [
+            { title: "📌 3학년 수시 상담 일정 안내", content: "모의고사 성적 및 희망대학 입력 후 담임선생님과 상담을 시작합니다." }
+        ];
+
+        // 1. 공지사항 불러오기
+        function loadNotices() {
+            const notices = JSON.parse(localStorage.getItem('ms_notices') || JSON.stringify(defaultNotices));
+            const container = document.getElementById('noticeContainer');
+            container.innerHTML = notices.map(n => `
+                <div class="notice-item">
+                    <strong>${n.title}</strong>
+                    <p style="font-size:0.9rem; color:#475569; margin-top:4px;">${n.content}</p>
+                </div>
+            `).join('');
+        }
+
+        // 2. 공지사항 추가 (관리자 전용)
+        function addNotice() {
+            const title = document.getElementById('noticeTitle').value;
+            const content = document.getElementById('noticeContent').value;
+            if(!title || !content) return alert('제목과 내용을 입력해 주세요.');
+
+            const notices = JSON.parse(localStorage.getItem('ms_notices') || JSON.stringify(defaultNotices));
+            notices.unshift({ title, content });
+            localStorage.setItem('ms_notices', JSON.stringify(notices));
+            
+            document.getElementById('noticeTitle').value = '';
+            document.getElementById('noticeContent').value = '';
+            loadNotices();
+            alert('공지가 등록되었습니다.');
+        }
+
+        // 3. 학생 데이터 제출
+        document.getElementById('studentForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const k = parseInt(document.getElementById('scoreKorean').value) || 0;
+            const m = parseInt(document.getElementById('scoreMath').value) || 0;
+            const eScore = parseInt(document.getElementById('scoreEnglish').value) || 0;
+            const t1 = parseInt(document.getElementById('scoreTam1').value) || 0;
+            const t2 = parseInt(document.getElementById('scoreTam2').value) || 0;
+
+            const student = {
+                id: Date.now(),
+                grade: document.getElementById('grade').value,
+                classNum: document.getElementById('classNum').value.padStart(2, '0'),
+                studentNum: document.getElementById('studentNum').value.padStart(2, '0'),
+                name: document.getElementById('studentName').value,
+                targetUni: document.getElementById('targetUni').value,
+                targetMajor: document.getElementById('targetMajor').value,
+                applyType: document.getElementById('applyType').value,
+                scores: { k, m, eScore, t1, t2 },
+                totalScore: k + m + eScore + t1 + t2
+            };
+
+            const data = JSON.parse(localStorage.getItem('ms_students') || '[]');
+            data.push(student);
+            localStorage.setItem('ms_students', JSON.stringify(data));
+
+            alert('성공적으로 제출되었습니다!');
+            document.getElementById('studentForm').reset();
+
+            if(isAdmin) renderTable('num');
+        });
+
+        // 4. 관리자 로그인 (비밀번호 검증)
+        function loginAdmin() {
+            if(isAdmin) {
+                alert('이미 관리자로 로그인되어 있습니다.');
+                return;
+            }
+            const pwd = prompt('교사 전용 비밀번호를 입력하세요:');
+            
+            // 관리자 비밀번호 검증
+            if(pwd === '1234') {
+                isAdmin = true;
+                alert('관리자 인증에 성공했습니다.');
+                document.getElementById('adminPanel').style.display = 'block';
+                document.getElementById('adminNoticeForm').style.display = 'block';
+                renderTable('num');
+            } else if(pwd !== null) {
+                alert('비밀번호가 올바르지 않습니다.');
+            }
+        }
+
+        // 5. 관리자 테이블 렌더링 (정렬 기능 포함)
+        function renderTable(sortBy = 'num') {
+            const data = JSON.parse(localStorage.getItem('ms_students') || '[]');
+            const tbody = document.getElementById('studentTableBody');
+
+            if(data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">제출된 데이터가 없습니다.</td></tr>';
+                return;
+            }
+
+            // 정렬 로직
+            if(sortBy === 'num') {
+                data.sort((a, b) => (a.grade + a.classNum + a.studentNum) - (b.grade + b.classNum + b.studentNum));
+            } else if(sortBy === 'score') {
+                data.sort((a, b) => b.totalScore - a.totalScore);
+            }
+
+            tbody.innerHTML = data.map(s => `
+                <tr>
+                    <td>${s.grade}${s.classNum}${s.studentNum}</td>
+                    <td><strong>${s.name}</strong></td>
+                    <td>${s.targetUni} (${s.targetMajor})</td>
+                    <td>${s.applyType}</td>
+                    <td>${s.scores.k} / ${s.scores.m} / ${s.scores.eScore} / ${s.scores.t1} / ${s.scores.t2}</td>
+                    <td><strong style="color:var(--primary);">${s.totalScore}점</strong></td>
+                </tr>
+            `).join('');
+        }
+
+        // 6. 엑셀 다운로드 기능
+        function downloadExcel() {
+            const data = JSON.parse(localStorage.getItem('ms_students') || '[]');
+            if(data.length === 0) return alert('다운로드할 데이터가 없습니다.');
+
+            const excelData = data.map(s => ({
+                '학번': `${s.grade}${s.classNum}${s.studentNum}`,
+                '학년': s.grade,
+                '반': s.classNum,
+                '번호': s.studentNum,
+                '이름': s.name,
+                '희망대학': s.targetUni,
+                '희망학과': s.targetMajor,
+                '전형': s.applyType,
+                '국어': s.scores.k,
+                '수학': s.scores.m,
+                '영어': s.scores.eScore,
+                '탐구1': s.scores.t1,
+                '탐구2': s.scores.t2,
+                '점수합계': s.totalScore
+            }));
+
+            const worksheet = XLSX.utils.json_to_sheet(excelData);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "학생제출데이터");
+            XLSX.writeFile(workbook, "석정여고_학생데이터.xlsx");
+        }
+
+        // 페이지로드 실행
+        loadNotices();
+    </script>
+</body>
+</html>
